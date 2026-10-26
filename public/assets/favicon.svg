@@ -1,18 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <defs>
-    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#06b6d4" />
-      <stop offset="100%" stop-color="#8b5cf6" />
+    <linearGradient id="rkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#06b6d4" />
     </linearGradient>
-    <linearGradient id="g2" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3b82f6" />
+    <linearGradient id="waveGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5" />
       <stop offset="100%" stop-color="#10b981" />
     </linearGradient>
   </defs>
-  <rect x="6" y="8" width="52" height="38" rx="8" stroke="url(#g1)" stroke-width="4" fill="#0d1322"/>
-  <path d="M22 56h20M32 46v10" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="20" cy="36" r="3" fill="#06b6d4"/>
-  <path d="M16 26a12 12 0 0 1 12 12" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/>
-  <path d="M16 18a20 20 0 0 1 20 20" stroke="url(#g2)" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="44" cy="22" r="4" fill="#ec4899"/>
+  <!-- Screen Frame -->
+  <rect x="6" y="8" width="52" height="38" rx="8" stroke="url(#rkGradient)" stroke-width="3.5" fill="#ffffff"/>
+  <!-- Screen Stand -->
+  <path d="M22 56h20M32 46v10" stroke="url(#rkGradient)" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Broadcast Origin Point -->
+  <circle cx="20" cy="34" r="3.5" fill="#4f46e5"/>
+  <!-- Broadcast Signal Waves -->
+  <path d="M16 24a12 12 0 0 1 12 12" stroke="#4f46e5" stroke-width="3" stroke-linecap="round"/>
+  <path d="M16 16a20 20 0 0 1 20 20" stroke="url(#waveGradient)" stroke-width="3" stroke-linecap="round"/>
+  <!-- Live Status Dot -->
+  <circle cx="46" cy="20" r="4" fill="#10b981"/>
 </svg>
