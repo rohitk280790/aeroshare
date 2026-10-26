@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch Recording — AeroShare Video</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      background: #080b12;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .watch-header {
+      height: 64px;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(10, 14, 23, 0.9);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .watch-container {
+      max-width: 1100px;
+      width: 100%;
+      margin: 32px auto 60px;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .player-card {
+      background: #000000;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-subtle);
+      position: relative;
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-element {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .video-meta-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+    }
+
+    .video-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .video-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .video-subtext {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .video-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Viral Conversion Banner */
+    .viral-banner {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .viral-text h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .viral-text p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    /* Speed Selector */
+    .speed-pills {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .speed-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+    }
+
+    .speed-btn.active {
+      background: var(--accent-cyan);
+      color: #000;
+    }
+
+    /* Comments Section */
+    .comments-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+    }
+
+    .comments-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .comment-input-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .comment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .comment-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow -->
+  <div class="ambient-glow glow-cyan"></div>
+  <div class="ambient-glow glow-violet"></div>
+
+  <!-- Header -->
+  <header class="watch-header">
+    <a href="/" class="brand" style="text-decoration:none">
+      <img src="/assets/favicon.svg" alt="AeroShare" class="brand-icon">
+      <span class="brand-text">Aero<span class="brand-highlight">Share</span></span>
+      <span class="badge badge-studio">VIDEO</span>
+    </a>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <a href="/" class="btn btn-primary btn-sm">
+        <span>Record Your Own Video (Free)</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="watch-container">
+    <!-- Video Player -->
+    <div class="player-card">
+      <video id="player-video" class="video-element" controls autoplay playsinline></video>
+    </div>
+
+    <!-- Video Meta & Share Actions -->
+    <div class="video-meta-section">
+      <div class="video-info">
+        <h1 id="video-title" class="video-title">Screen Recording</h1>
+        <div class="video-subtext">
+          <span id="video-date">Recorded recently</span>
+          <span>•</span>
+          <span id="video-duration">--:--</span>
+          <span>•</span>
+          <span id="video-views">0 views</span>
+        </div>
+      </div>
+
+      <div class="video-actions">
+        <!-- Playback Speeds -->
+        <div class="speed-pills">
+          <button class="speed-btn" data-speed="0.75">0.75x</button>
+          <button class="speed-btn active" data-speed="1">1x</button>
+          <button class="speed-btn" data-speed="1.25">1.25x</button>
+          <button class="speed-btn" data-speed="1.5">1.5x</button>
+          <button class="speed-btn" data-speed="2">2x</button>
+        </div>
+
+        <button id="btn-copy-share-url" class="btn btn-secondary btn-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy Link</span>
+        </button>
+
+        <a id="btn-download-video" class="btn btn-glass btn-sm" download="AeroShare-Recording.webm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Download</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Viral Product-Led Growth Banner -->
+    <div class="viral-banner">
+      <div class="viral-text">
+        <h3>Create instant screen & webcam videos like this</h3>
+        <p>AeroShare lets you record your screen, webcam, and drawings in 1 click — zero downloads needed.</p>
+      </div>
+      <a href="/" class="btn btn-primary">Start Recording Now</a>
+    </div>
+
+    <!-- Timestamped Feedback & Notes -->
+    <section class="comments-card">
+      <h2 class="comments-title">Feedback & Comments</h2>
+      <div class="comment-input-row">
+        <input type="text" id="comment-name" class="form-input" style="width:180px;" placeholder="Your Name" value="Viewer">
+        <input type="text" id="comment-text" class="form-input" placeholder="Add a comment at current timestamp..." style="flex:1;">
+        <button id="btn-post-comment" class="btn btn-primary btn-sm">Comment</button>
+      </div>
+      <div id="comment-list" class="comment-list">
+        <!-- Comments -->
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Get Video ID from URL path: /v/:id
+      const pathParts = window.location.pathname.split('/');
+      const videoId = pathParts[pathParts.length - 1];
+
+      const player = document.getElementById('player-video');
+      const titleEl = document.getElementById('video-title');
+      const dateEl = document.getElementById('video-date');
+      const durationEl = document.getElementById('video-duration');
+      const viewsEl = document.getElementById('video-views');
+      const downloadBtn = document.getElementById('btn-download-video');
+      const copyBtn = document.getElementById('btn-copy-share-url');
+
+      try {
+        const res = await fetch(`/api/videos/${videoId}`);
+        if (!res.ok) throw new Error('Video not found');
+        const data = await res.json();
+
+        titleEl.textContent = data.title || 'Screen Recording';
+        dateEl.textContent = new Date(data.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        durationEl.textContent = data.duration || '00:00';
+        viewsEl.textContent = `${data.views || 1} views`;
+
+        player.src = `/api/videos/${videoId}/stream`;
+        downloadBtn.href = `/api/videos/${videoId}/stream`;
+        downloadBtn.download = `${data.title || 'AeroShare'}.webm`;
+      } catch (err) {
+        titleEl.textContent = 'Recording Not Found or Processing';
+      }
+
+      // Playback speed buttons
+      const speedBtns = document.querySelectorAll('.speed-btn');
+      speedBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          speedBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          player.playbackRate = parseFloat(btn.dataset.speed);
+        });
+      });
+
+      // Copy share link
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href);
+        copyBtn.textContent = '✓ Copied!';
+        setTimeout(() => copyBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span>Copy Link</span>
+        `, 2000);
+      });
+
+      // Simple local comments demo
+      const commentBtn = document.getElementById('btn-post-comment');
+      const commentInput = document.getElementById('comment-text');
+      const commentName = document.getElementById('comment-name');
+      const commentList = document.getElementById('comment-list');
+
+      commentBtn.addEventListener('click', () => {
+        const text = commentInput.value.trim();
+        if (!text) return;
+
+        const currentSecs = Math.floor(player.currentTime);
+        const mins = Math.floor(currentSecs / 60);
+        const secs = currentSecs % 60;
+        const timeStamp = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        const div = document.createElement('div');
+        div.className = 'comment-item';
+        div.innerHTML = `
+          <strong style="color:var(--accent-cyan); cursor:pointer;" onclick="document.getElementById('player-video').currentTime = ${currentSecs}">[${timeStamp}]</strong>
+          <strong>${commentName.value}:</strong>
+          <span>${text}</span>
+        `;
+        commentList.prepend(div);
+        commentInput.value = '';
+      });
+    });
+  </script>
+</body>
+</html>

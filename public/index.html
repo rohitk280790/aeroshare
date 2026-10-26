@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroShare — Ultra-Fast WebRTC Screen Sharing & Presentation Studio</title>
+  <meta name="description" content="Free, secure, ultra-low latency WebRTC screen sharing web app. Stream full screen, window, or tab with webcam PiP, live drawing annotations, and HD recording.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/studio.css">
+</head>
+<body class="theme-dark">
+
+  <!-- Ambient Glow Background -->
+  <div class="ambient-glow glow-cyan"></div>
+  <div class="ambient-glow glow-violet"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- ======================================================== -->
+  <!-- 1. LOBBY VIEW (Join / Host)                              -->
+  <!-- ======================================================== -->
+  <main id="view-lobby" class="view-active lobby-view">
+    <header class="lobby-header">
+      <div class="brand">
+        <img src="assets/favicon.svg" alt="AeroShare Logo" class="brand-icon">
+        <span class="brand-text">Aero<span class="brand-highlight">Share</span></span>
+        <span class="badge badge-studio">STUDIO</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button id="btn-open-pricing-lobby" class="btn btn-sm btn-secondary" style="border-color:var(--accent-cyan); color:var(--accent-cyan); font-weight:700;">
+          ⚡ Upgrade to Pro (₹799)
+        </button>
+        <div class="header-status">
+          <span class="status-indicator live-dot"></span>
+          <span id="lobby-connection-status" class="status-text">Signaling Ready</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="lobby-container">
+      <div class="hero-section">
+        <h1 class="hero-title">
+          Instant Screen Sharing <br>
+          <span class="gradient-text">Zero Plugins. Ultra-Low Latency.</span>
+        </h1>
+        <p class="hero-subtitle">
+          Broadcast your screen directly to peer viewers over WebRTC. Featuring webcam Picture-in-Picture, live canvas annotations, laser pointer, and HD session recording.
+        </p>
+
+        <!-- LAN Discovery Notification -->
+        <div id="lan-discovery-box" class="lan-card">
+          <div class="lan-icon">📡</div>
+          <div class="lan-content">
+            <span class="lan-title">Local Network (Wi-Fi) Sharing Ready</span>
+            <span id="lan-url-display" class="lan-url">Detecting local network addresses...</span>
+          </div>
+          <button id="btn-copy-lan" class="btn-icon" title="Copy LAN URL">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Cards: Host vs Join -->
+      <div class="cards-grid">
+        <!-- Host Card -->
+        <div class="action-card card-host">
+          <div class="card-badge">PRESENTER</div>
+          <div class="card-icon-wrapper host-gradient">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <h2 class="card-title">Host a Presentation</h2>
+          <p class="card-description">Create a private room to stream your screen, use live annotations, and record your session.</p>
+
+          <form id="form-host" class="card-form">
+            <div class="form-group">
+              <label for="host-name" class="form-label">Your Name / Title</label>
+              <input type="text" id="host-name" class="form-input" placeholder="e.g. Alex (Presenter)" value="Presenter" maxlength="30" required>
+            </div>
+
+            <div class="form-group">
+              <label for="host-quality" class="form-label">Quality Preset</label>
+              <select id="host-quality" class="form-select">
+                <option value="1080p60" selected>1080p @ 60 FPS (Ultra Smooth)</option>
+                <option value="4k30">4K UHD @ 30 FPS (Crisp Text / Code)</option>
+                <option value="720p30">720p @ 30 FPS (Low Bandwidth)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="custom-room-code" class="form-label">Custom Room Code <span class="label-hint">(Optional)</span></label>
+              <input type="text" id="custom-room-code" class="form-input font-mono uppercase" placeholder="e.g. DESIGN" maxlength="8">
+            </div>
+
+            <button type="submit" id="btn-start-host" class="btn btn-primary btn-block">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              <span>Create Room & Start Sharing</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Join Card -->
+        <div class="action-card card-join">
+          <div class="card-badge badge-viewer">VIEWER</div>
+          <div class="card-icon-wrapper join-gradient">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+          </div>
+          <h2 class="card-title">Join a Stream</h2>
+          <p class="card-description">Enter a 6-character room code to watch a live stream in real time with synchronized annotations.</p>
+
+          <form id="form-join" class="card-form">
+            <div class="form-group">
+              <label for="join-room-code" class="form-label">Room Code</label>
+              <input type="text" id="join-room-code" class="form-input font-mono uppercase room-code-input" placeholder="ABCDEF" maxlength="8" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+              <label for="viewer-name" class="form-label">Your Name</label>
+              <input type="text" id="viewer-name" class="form-input" placeholder="e.g. Sarah" maxlength="30">
+            </div>
+
+            <div class="card-spacer"></div>
+
+            <button type="submit" id="btn-join-room" class="btn btn-secondary btn-block">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              <span>Connect to Stream</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Features Pill Highlights -->
+      <div class="feature-pills">
+        <div class="pill-item">
+          <span class="pill-icon">⚡</span>
+          <span>WebRTC P2P Low Latency</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-icon">🎨</span>
+          <span>Synced Drawing & Laser</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-icon">📷</span>
+          <span>Webcam Avatar PiP</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-icon">🎙️</span>
+          <span>System & Mic Audio Mixer</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-icon">🔴</span>
+          <span>HD 60FPS Video Recorder</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- 2. STUDIO VIEW (Presenter & Viewer Active Stage)         -->
+  <!-- ======================================================== -->
+  <div id="view-studio" class="view-hidden studio-view">
+    
+    <!-- Top Navigation Bar -->
+    <header class="studio-header">
+      <div class="header-left">
+        <div class="brand-mini">
+          <img src="assets/favicon.svg" alt="AeroShare" class="brand-icon-mini">
+          <span class="brand-title-mini">AeroShare</span>
+        </div>
+        <span id="role-badge" class="badge badge-host">HOST</span>
+
+        <!-- Room Code Pill with 1-click Copy -->
+        <button id="btn-room-badge" class="room-badge" title="Click to copy room link">
+          <span class="room-label">ROOM:</span>
+          <span id="display-room-code" class="room-code font-mono">------</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+
+        <!-- Session Duration -->
+        <div class="session-timer font-mono" id="session-timer">00:00:00</div>
+      </div>
+
+      <div class="header-center">
+        <!-- Live Recording HUD -->
+        <div id="rec-hud" class="rec-hud hidden">
+          <span class="rec-indicator-dot"></span>
+          <span class="rec-text">REC</span>
+          <span id="rec-timer" class="rec-timer font-mono">00:00</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Viewer count badge -->
+        <div class="viewer-count-pill" id="viewer-count-pill" title="Connected Viewers">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span id="viewer-count-number">0</span>
+          <span class="viewer-text">Viewers</span>
+        </div>
+
+        <!-- Share Invite Button -->
+        <button id="btn-open-invite" class="btn btn-sm btn-glass" title="Invite & QR Code">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Invite</span>
+        </button>
+
+        <!-- Toggle Sidebar Drawer -->
+        <button id="btn-toggle-drawer" class="btn btn-sm btn-glass has-badge" title="Toggle Chat & Participants">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span id="unread-badge" class="unread-dot hidden"></span>
+        </button>
+
+        <!-- Upgrade to Pro Button -->
+        <button id="btn-open-pricing-studio" class="btn btn-sm btn-glass" style="border-color:var(--accent-cyan); color:var(--accent-cyan); font-weight:700;" title="Upgrade to Pro">
+          ⚡ Pro
+        </button>
+
+        <!-- Leave Room -->
+        <button id="btn-leave-session" class="btn btn-sm btn-danger" title="Leave Session">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Exit</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <div class="studio-body">
+      <!-- Stage Viewport -->
+      <section id="stage-viewport" class="stage-viewport">
+        <div id="video-wrapper" class="video-wrapper">
+          <!-- Active Screen Video Element -->
+          <video id="screen-video" autoplay playsinline></video>
+
+          <!-- Transparent Annotation Canvas Layer (Presenter & Viewer Sync) -->
+          <canvas id="annotation-canvas" class="annotation-canvas"></canvas>
+
+          <!-- Laser Pointer Canvas (Fading Particle Trail) -->
+          <canvas id="laser-canvas" class="laser-canvas"></canvas>
+
+          <!-- Floating Draggable Webcam PiP Bubble -->
+          <div id="webcam-pip" class="webcam-pip hidden" style="top: 20px; right: 20px;">
+            <div class="pip-header" id="pip-drag-handle">
+              <span class="pip-title">Camera</span>
+              <div class="pip-actions">
+                <button id="btn-pip-shape" class="pip-btn" title="Toggle Shape (Circle / Rectangle)">⬡</button>
+                <button id="btn-pip-mirror" class="pip-btn" title="Mirror Camera">⇄</button>
+                <button id="btn-pip-close" class="pip-btn" title="Close Camera">✕</button>
+              </div>
+            </div>
+            <div class="pip-video-container">
+              <video id="webcam-video" autoplay playsinline muted></video>
+            </div>
+          </div>
+
+          <!-- Empty State Overlay (When not sharing or waiting for presenter) -->
+          <div id="empty-stage-overlay" class="empty-stage-overlay">
+            <div class="empty-stage-content">
+              <div class="pulse-radar">
+                <div class="pulse-ring"></div>
+                <div class="pulse-ring delay-1"></div>
+                <div class="pulse-ring delay-2"></div>
+                <div class="pulse-center">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/>
+                    <line x1="8" y1="21" x2="16" y2="21"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
+                  </svg>
+                </div>
+              </div>
+              <h3 id="empty-stage-title" class="empty-title">Ready to Present</h3>
+              <p id="empty-stage-desc" class="empty-desc">Click "Share Screen" in the dock below to select your monitor, application, or browser tab.</p>
+              <button id="btn-empty-start-share" class="btn btn-primary btn-pulse">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                <span>Share Screen Now</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Presenter Broadcasting Status Card (Eliminates Infinity Mirror Loop) -->
+          <div id="presenter-active-card" class="presenter-active-card hidden">
+            <div class="presenter-card-content">
+              <div class="presenter-broadcast-pulse">
+                <span class="live-pulse-badge">🔴 BROADCASTING LIVE</span>
+                <div class="broadcast-icon">📺</div>
+              </div>
+              <h2 class="presenter-card-title">You are presenting to everyone</h2>
+              <p class="presenter-card-desc">
+                Your screen is streaming live to <span id="presenting-viewer-count" class="font-bold text-cyan">viewers</span> in this room.
+              </p>
+
+              <!-- Mirror Feedback Explanation -->
+              <div class="mirror-tip-box">
+                <div class="tip-header">
+                  <span class="tip-icon">💡</span>
+                  <span class="tip-title">Why the repeating tunnel (infinity loop) happens:</span>
+                </div>
+                <p class="tip-body">
+                  When you look at this AeroShare tab while sharing your entire screen, it reflects itself like two mirrors facing each other.<br>
+                  <strong>Don't worry — your viewers see whatever you switch to!</strong> Just switch to your presentation, PDF, code editor, or another browser tab.
+                </p>
+              </div>
+
+              <div class="presenter-card-actions">
+                <button id="btn-toggle-local-preview" class="btn btn-secondary btn-sm" type="button">
+                  <span id="preview-toggle-icon">👁️</span>
+                  <span id="preview-toggle-label">Show Local Preview</span>
+                </button>
+                <button id="btn-stop-sharing-card" class="btn btn-danger btn-sm" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                  <span>Stop Presenting</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Notice when local preview is toggled on -->
+          <div id="preview-notice-badge" class="preview-notice-badge hidden">
+            <span>ℹ️ Local Preview Active: Repeating tunnel is normal when viewing this window. Switch to another app to present cleanly.</span>
+            <button id="btn-hide-preview-badge" class="badge-dismiss-btn" title="Hide Preview">Hide Preview</button>
+          </div>
+
+          <!-- Reaction Burst Layer -->
+          <div id="reaction-burst-container" class="reaction-burst-layer"></div>
+
+          <!-- Quick Stage Overlay Controls (Fullscreen & Snapshot) -->
+          <div class="stage-overlay-controls">
+            <button id="btn-stage-snapshot" class="btn-icon-glass" title="Take HD Screenshot">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <button id="btn-stage-fullscreen" class="btn-icon-glass" title="Toggle Fullscreen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Interactive Drawer (Chat, Viewers, Info) -->
+      <aside id="studio-drawer" class="studio-drawer drawer-open">
+        <div class="drawer-header">
+          <div class="drawer-tabs">
+            <button id="tab-btn-chat" class="tab-btn tab-active" data-tab="chat">Chat</button>
+            <button id="tab-btn-viewers" class="tab-btn" data-tab="viewers">Viewers (<span id="drawer-viewer-count">0</span>)</button>
+            <button id="tab-btn-info" class="tab-btn" data-tab="info">Room Info</button>
+          </div>
+          <button id="btn-close-drawer" class="btn-icon-sm" title="Close Drawer">✕</button>
+        </div>
+
+        <!-- Tab 1: Live Chat -->
+        <div id="tab-content-chat" class="tab-pane pane-active">
+          <div id="chat-messages-container" class="chat-messages">
+            <div class="system-message">
+              <span>Welcome to AeroShare room. Messages and emoji reactions are live!</span>
+            </div>
+          </div>
+
+          <!-- Emoji Reaction Quick Bar -->
+          <div class="reactions-bar">
+            <button class="emoji-btn" data-emoji="👏" title="Applause">👏</button>
+            <button class="emoji-btn" data-emoji="🔥" title="Fire">🔥</button>
+            <button class="emoji-btn" data-emoji="❤️" title="Love">❤️</button>
+            <button class="emoji-btn" data-emoji="💡" title="Idea">💡</button>
+            <button class="emoji-btn" data-emoji="🚀" title="Rocket">🚀</button>
+            <button id="btn-raise-hand" class="raise-hand-btn" title="Raise Hand">✋ Raise Hand</button>
+          </div>
+
+          <!-- Chat Input -->
+          <form id="chat-form" class="chat-form">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="300" autocomplete="off">
+            <button type="submit" id="btn-chat-send" class="btn-chat-send" title="Send Message">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </form>
+        </div>
+
+        <!-- Tab 2: Viewers List -->
+        <div id="tab-content-viewers" class="tab-pane">
+          <div class="viewers-list-header">
+            <span>Participants in Session</span>
+          </div>
+          <ul id="viewers-list" class="viewers-list">
+            <!-- Dynamically populated -->
+          </ul>
+        </div>
+
+        <!-- Tab 3: Room Info & Network -->
+        <div id="tab-content-info" class="tab-pane">
+          <div class="info-group">
+            <label class="info-label">Room Identifier</label>
+            <div class="info-value font-mono" id="info-room-id">------</div>
+          </div>
+          <div class="info-group">
+            <label class="info-label">Host Name</label>
+            <div class="info-value" id="info-host-name">Presenter</div>
+          </div>
+          <div class="info-group">
+            <label class="info-label">WebRTC Connection</label>
+            <div class="info-value text-emerald">P2P Encrypted</div>
+          </div>
+          <div class="info-group">
+            <label class="info-label">Local Network URL</label>
+            <div class="info-value font-mono text-xs" id="info-lan-url">Loading...</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- FLOATING STUDIO CONTROL DOCK                             -->
+    <!-- ======================================================== -->
+    <nav id="studio-dock" class="studio-dock" aria-label="Studio Controls">
+      <!-- Screen Share Toggle -->
+      <button id="btn-toggle-share" class="dock-btn dock-btn-primary" title="Start/Stop Screen Share">
+        <div class="dock-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <span id="label-share-btn" class="dock-label">Share Screen</span>
+      </button>
+
+      <div class="dock-separator"></div>
+
+      <!-- Mic Toggle with Audio Level Meter -->
+      <button id="btn-toggle-mic" class="dock-btn" title="Toggle Microphone">
+        <div class="dock-icon has-meter">
+          <svg id="icon-mic-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <svg id="icon-mic-off" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <div class="audio-vu-meter" id="mic-vu-meter"><div class="vu-fill" id="mic-vu-fill"></div></div>
+        </div>
+        <span class="dock-label">Mic</span>
+      </button>
+
+      <!-- Webcam PiP Toggle -->
+      <button id="btn-toggle-cam" class="dock-btn" title="Toggle Camera PiP">
+        <div class="dock-icon">
+          <svg id="icon-cam-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <svg id="icon-cam-off" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1"/><line x1="1" y1="1" x2="23" y2="23"/><polygon points="23 7 16 12 23 17 23 7"/></svg>
+        </div>
+        <span class="dock-label">Camera</span>
+      </button>
+
+      <div class="dock-separator"></div>
+
+      <!-- Annotation Tools Dropdown Trigger -->
+      <div class="dock-tool-wrapper">
+        <button id="btn-dock-tools" class="dock-btn" title="Drawing & Annotation Tools">
+          <div class="dock-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 5-3-3L3 14v4h4L19 6z"/><path d="m14 2 4 4"/><circle cx="18" cy="18" r="3"/></svg>
+          </div>
+          <span class="dock-label">Draw</span>
+        </button>
+
+        <!-- Floating Annotation Tool Palette Popover -->
+        <div id="annotation-popover" class="annotation-popover hidden">
+          <div class="popover-section">
+            <span class="popover-title">Tools</span>
+            <div class="tool-buttons">
+              <button class="tool-btn tool-active" data-tool="select" title="Normal Cursor">👆 Cursor</button>
+              <button class="tool-btn" data-tool="laser" title="Laser Pointer with Glow Trail">🔴 Laser</button>
+              <button class="tool-btn" data-tool="pen" title="Freehand Pen">✏️ Pen</button>
+              <button class="tool-btn" data-tool="highlighter" title="Semi-Transparent Highlighter">🖍️ Highlight</button>
+              <button class="tool-btn" data-tool="arrow" title="Draw Arrow">↗️ Arrow</button>
+              <button class="tool-btn" data-tool="rect" title="Draw Rectangle">▢ Box</button>
+              <button class="tool-btn" data-tool="eraser" title="Eraser">🧹 Eraser</button>
+            </div>
+          </div>
+
+          <div class="popover-section">
+            <span class="popover-title">Color</span>
+            <div class="color-palette">
+              <button class="color-swatch color-active" data-color="#ec4899" style="background:#ec4899"></button>
+              <button class="color-swatch" data-color="#06b6d4" style="background:#06b6d4"></button>
+              <button class="color-swatch" data-color="#10b981" style="background:#10b981"></button>
+              <button class="color-swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
+              <button class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+              <button class="color-swatch" data-color="#ffffff" style="background:#ffffff"></button>
+            </div>
+          </div>
+
+          <div class="popover-section">
+            <span class="popover-title">Stroke Width</span>
+            <div class="stroke-picker">
+              <button class="stroke-btn stroke-active" data-stroke="3">Small</button>
+              <button class="stroke-btn" data-stroke="6">Medium</button>
+              <button class="stroke-btn" data-stroke="12">Bold</button>
+            </div>
+          </div>
+
+          <div class="popover-footer">
+            <button id="btn-draw-undo" class="popover-action" title="Undo Last Stroke">↩ Undo</button>
+            <button id="btn-draw-clear" class="popover-action danger" title="Clear All Drawings">🗑️ Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- HD Recording Toggle -->
+      <button id="btn-toggle-record" class="dock-btn" title="Record Session in HD">
+        <div class="dock-icon">
+          <div class="rec-dot-icon" id="rec-dot-icon"></div>
+        </div>
+        <span id="label-rec-btn" class="dock-label">Record</span>
+      </button>
+
+      <div class="dock-separator"></div>
+
+      <!-- Studio Settings Button -->
+      <button id="btn-dock-settings" class="dock-btn" title="Stream Settings">
+        <div class="dock-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <span class="dock-label">Settings</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODALS                                                   -->
+  <!-- ======================================================== -->
+
+  <!-- 1. Invite & QR Code Modal -->
+  <dialog id="modal-invite" class="modal-dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Invite Viewers</h3>
+        <button class="modal-close" id="btn-close-invite">✕</button>
+      </div>
+      <div class="modal-content">
+        <p class="modal-desc">Share this direct link or room code with viewers on any device:</p>
+        
+        <div class="invite-field-group">
+          <label class="form-label">Direct Invite URL</label>
+          <div class="copy-input-row">
+            <input type="text" id="invite-direct-url" class="form-input font-mono text-sm" readonly>
+            <button id="btn-copy-direct-url" class="btn btn-primary btn-sm">Copy Link</button>
+          </div>
+        </div>
+
+        <div class="invite-field-group">
+          <label class="form-label">Room Code</label>
+          <div class="room-code-display font-mono" id="modal-display-code">------</div>
+        </div>
+
+        <div class="qr-container">
+          <canvas id="qr-canvas" width="160" height="160"></canvas>
+          <span class="qr-hint">Scan with mobile phone or tablet on the same Wi-Fi</span>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 2. Recording Export Modal -->
+  <dialog id="modal-recording" class="modal-dialog">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Session Recording Ready</h3>
+        <button class="modal-close" id="btn-close-recording">✕</button>
+      </div>
+      <div class="modal-content">
+        <p class="modal-desc">Your HD screen session was recorded successfully. Preview and download below:</p>
+        <div class="recording-preview-wrapper">
+          <video id="recording-preview-video" controls class="recording-preview-player"></video>
+        </div>
+        <div class="recording-meta">
+          <span id="recording-filesize">Size: Calculating...</span>
+          <span id="recording-duration">Duration: 00:00</span>
+        </div>
+        <!-- Instant Cloud Share Box (Loom SaaS Feature) -->
+        <div id="recording-cloud-share-box" class="cloud-share-box">
+          <div class="share-box-content">
+            <div class="share-box-icon">⚡</div>
+            <div class="share-box-text">
+              <strong style="color:var(--text-main);">Instant Cloud Share Link (Loom Style)</strong>
+              <span style="color:var(--text-muted); font-size:0.8rem;">Upload to cloud and share a public watch link with anyone.</span>
+            </div>
+            <button id="btn-upload-cloud-video" class="btn btn-primary btn-sm" type="button">
+              <span>Upload & Get Link</span>
+            </button>
+          </div>
+          <!-- Upload Result Link -->
+          <div id="upload-link-result" class="upload-link-result hidden">
+            <input type="text" id="generated-video-url" class="form-input font-mono text-sm" readonly>
+            <button id="btn-copy-video-link" class="btn btn-secondary btn-sm" type="button">Copy Link</button>
+            <a id="btn-open-watch-page" class="btn btn-glass btn-sm" target="_blank" rel="noopener">Open Page ↗</a>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="btn-discard-recording" class="btn btn-glass">Discard</button>
+          <a id="btn-download-recording" class="btn btn-secondary" download="AeroShare-Recording.webm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download Local Video (.webm)</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 3. Stream & Audio Settings Modal -->
+  <dialog id="modal-settings" class="modal-dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Studio Settings</h3>
+        <button class="modal-close" id="btn-close-settings">✕</button>
+      </div>
+      <div class="modal-content">
+        <div class="form-group">
+          <label for="setting-resolution" class="form-label">Streaming Resolution Preset</label>
+          <select id="setting-resolution" class="form-select">
+            <option value="1080p60">1080p @ 60 FPS (Default - Smooth motion)</option>
+            <option value="4k30">4K Ultra HD @ 30 FPS (Crisp text/code)</option>
+            <option value="720p30">720p HD @ 30 FPS (Low bandwidth)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Audio Mixing</label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="setting-system-audio" checked>
+            <span>Capture System / Tab Audio</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="setting-mic-noise" checked>
+            <span>Microphone Noise Suppression & Echo Cancellation</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Annotations Sync</label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="setting-broadcast-annotations" checked>
+            <span>Broadcast drawings to viewers in real time</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 4. Pricing & Razorpay Subscription Modal -->
+  <dialog id="modal-pricing" class="modal-dialog">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Upgrade to AeroShare Pro</h3>
+          <p class="modal-desc" style="margin-bottom:0">Unlock unlimited 4K recording, cloud links, and AI summaries.</p>
+        </div>
+        <button class="modal-close" id="btn-close-pricing">✕</button>
+      </div>
+
+      <div class="modal-content">
+        <div class="pricing-grid">
+          <!-- Starter Plan -->
+          <div class="pricing-card">
+            <span class="pricing-plan-name">Starter</span>
+            <div class="pricing-price">₹0 <span class="pricing-period">forever</span></div>
+            <p class="pricing-desc">For quick screen shares and temporary recordings.</p>
+            <ul class="pricing-features">
+              <li>✓ 5-minute recordings</li>
+              <li>✓ 25 video cloud storage</li>
+              <li>✓ 1080p stream resolution</li>
+              <li>✓ Live canvas drawings</li>
+            </ul>
+            <button class="btn btn-glass btn-block" disabled>Current Plan</button>
+          </div>
+
+          <!-- Pro Plan (Recommended) -->
+          <div class="pricing-card pricing-popular">
+            <div class="popular-ribbon">POPULAR</div>
+            <span class="pricing-plan-name text-cyan">AeroShare Pro</span>
+            <div class="pricing-price">₹799 <span class="pricing-period">/ month</span></div>
+            <p class="pricing-desc">For professionals, founders, developers & creators.</p>
+            <ul class="pricing-features">
+              <li>✓ <strong>Unlimited</strong> recording duration</li>
+              <li>✓ <strong>Unlimited</strong> cloud video links</li>
+              <li>✓ <strong>4K UHD @ 60 FPS</strong> quality</li>
+              <li>✓ <strong>No Watermark</strong> & custom branding</li>
+              <li>✓ <strong>Viewer Drop-off</strong> analytics</li>
+              <li>✓ <strong>AI Video Summary</strong> & transcript</li>
+            </ul>
+            <button id="btn-buy-pro" class="btn btn-primary btn-block">
+              <span>Upgrade with Razorpay</span>
+            </button>
+          </div>
+
+          <!-- Team Plan -->
+          <div class="pricing-card">
+            <span class="pricing-plan-name">Team Workspace</span>
+            <div class="pricing-price">₹1,499 <span class="pricing-period">/ user / mo</span></div>
+            <p class="pricing-desc">For remote teams & client agencies.</p>
+            <ul class="pricing-features">
+              <li>✓ Everything in Pro</li>
+              <li>✓ Shared team video workspace</li>
+              <li>✓ Centralized team library</li>
+              <li>✓ Custom branding & domain</li>
+              <li>✓ Priority support</li>
+            </ul>
+            <button id="btn-buy-team" class="btn btn-secondary btn-block">
+              <span>Get Team Access</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="payment-guarantee">
+          <span>🔒 Secured by <strong>Razorpay</strong>. Instant UPI AutoPay, Credit/Debit cards & Net Banking. Cancel anytime.</span>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Razorpay Checkout & Application Scripts -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="js/webrtc.js"></script>
+  <script src="js/screen.js"></script>
+  <script src="js/annotations.js"></script>
+  <script src="js/webcam.js"></script>
+  <script src="js/recorder.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

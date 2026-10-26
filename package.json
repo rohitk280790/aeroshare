@@ -1,0 +1,25 @@
+{
+  "name": "aero-share",
+  "version": "1.0.0",
+  "description": "Real-time WebRTC screen sharing and presentation suite with room sharing, webcam PiP, annotations, and HD recording.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "webrtc",
+    "screenshare",
+    "canvas",
+    "recording",
+    "presentation"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.5.0",
+    "razorpay": "^2.9.8",
+    "ws": "^8.18.0"
+  }
+}
