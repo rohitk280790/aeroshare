@@ -218,44 +218,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   webrtc.onRemoteStream = (stream) => {
-    console.log('[App] onRemoteStream called, tracks:', stream.getTracks().map(t => t.kind + ':' + t.readyState));
-
-    // Only update srcObject if it's a different stream — prevents black flash during renegotiation
-    if (screenVideo.srcObject !== stream) {
-      console.log('[App] Attaching new remote stream to video element');
-      screenVideo.srcObject = stream;
-      screenVideo.muted = true; // Muted by default to satisfy browser autoplay policy
-    }
+    const tracks = stream.getTracks();
+    console.log('[App] onRemoteStream — tracks:', tracks.map(t => `${t.kind}:${t.readyState}:muted=${t.muted}`));
 
     const tapOverlay = document.getElementById('tap-to-play-overlay');
 
-    const playVideo = () => {
-      const playPromise = screenVideo.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          // Playback started successfully - hide tap overlay
+    // Always set srcObject (idempotent if same stream)
+    if (screenVideo.srcObject !== stream) {
+      console.log('[App] Setting srcObject on video element');
+      screenVideo.srcObject = stream;
+    }
+    screenVideo.muted = true; // Required for autoplay on mobile
+
+    const tryPlay = () => {
+      const p = screenVideo.play();
+      if (p !== undefined) {
+        p.then(() => {
+          console.log('[App] Video playing successfully');
           if (tapOverlay) tapOverlay.classList.add('hidden');
         }).catch(err => {
-          console.warn('[App] Autoplay blocked - showing tap-to-play overlay:', err.name);
-          // Show tap-to-play overlay for mobile autoplay restrictions
+          console.warn('[App] Autoplay blocked:', err.name, '— showing tap overlay');
           if (tapOverlay) tapOverlay.classList.remove('hidden');
         });
       }
     };
 
-    if (screenVideo.readyState >= 2) {
-      // Already have enough data to play
-      playVideo();
-    } else {
-      screenVideo.onloadedmetadata = playVideo;
-      // Also try playing directly in case metadata is already available
-      playVideo();
-    }
+    // Try immediately — also set up loadedmetadata fallback
+    tryPlay();
+    screenVideo.onloadedmetadata = () => {
+      console.log('[App] Video metadata loaded, videoWidth:', screenVideo.videoWidth, 'videoHeight:', screenVideo.videoHeight);
+      tryPlay();
+    };
 
     hideEmptyStage();
     ui.showToast('Screen stream connected!', 'success');
 
-    // Show unmute button if stream contains audio
     if (stream.getAudioTracks().length > 0 && btnStageUnmute) {
       btnStageUnmute.classList.remove('hidden');
     }

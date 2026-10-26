@@ -1,5 +1,11 @@
 /**
  * AeroShare — WebRTC Peer-to-Peer & WebSocket Signaling Client
+ * 
+ * Architecture:
+ * - Viewers who join BEFORE presenter starts sharing are queued (pendingViewers)
+ * - WebRTC peer connections are ONLY created when a stream is ready
+ * - This avoids renegotiation (adding tracks post-connection), which breaks on many mobile browsers
+ * - When stream updates, existing connections use replaceTrack (no re-negotiation needed)
  */
 
 class WebRTCManager {
@@ -8,22 +14,22 @@ class WebRTCManager {
     this.clientId = null;
     this.roomId = null;
     this.role = null; // 'presenter' | 'viewer'
-    this.peers = new Map(); // viewerId -> { pc, dataChannel } (for presenter)
-    this.presenterPc = null; // (for viewer)
+    this.peers = new Map(); // viewerId -> { pc, dataChannel, iceQueue }
+    this.pendingViewers = new Set(); // viewers waiting for stream to be ready
+    this.presenterPc = null; // viewer-side peer connection
     this.presenterDataChannel = null;
     this.iceCandidateQueue = [];
     this.activeStream = null;
-    this.remoteStream = null; // Single persistent MediaStream for viewer
+    this.remoteStream = null; // single persistent MediaStream for viewer
 
     this.rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
         { urls: 'stun:global.stun.twilio.com:3478' },
-        // Public OpenRelay TURN servers (Required for NAT traversal on mobile networks / Render)
+        // OpenRelay TURN (NAT traversal for mobile/Render)
         {
           urls: 'turn:openrelay.metered.ca:80',
           username: 'openrelay',
@@ -69,15 +75,6 @@ class WebRTCManager {
         console.log('[WebRTC] Signaling connected');
       };
 
-      this.ws.onmessage = async (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          await this.handleSignalingMessage(msg);
-        } catch (err) {
-          console.error('[WebRTC] Error parsing signaling message:', err);
-        }
-      };
-
       this.ws.onerror = (err) => {
         console.error('[WebRTC] WebSocket error:', err);
         this.onError('Signaling connection error. Please refresh.');
@@ -88,17 +85,26 @@ class WebRTCManager {
         console.log('[WebRTC] Signaling disconnected');
       };
 
-      // Resolve when connected message arrives
-      const origOnMessage = this.ws.onmessage;
+      // Wait for 'connected' message to get our clientId
       this.ws.onmessage = async (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'connected') {
-          this.clientId = msg.clientId;
-          this.ws.onmessage = origOnMessage;
-          resolve(msg.clientId);
-          this.onConnected(msg.clientId);
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'connected') {
+            this.clientId = msg.clientId;
+            // Switch to the main message handler
+            this.ws.onmessage = async (e) => {
+              try {
+                await this.handleSignalingMessage(JSON.parse(e.data));
+              } catch (err) {
+                console.error('[WebRTC] Error handling message:', err);
+              }
+            };
+            resolve(msg.clientId);
+            this.onConnected(msg.clientId);
+          }
+        } catch (err) {
+          console.error('[WebRTC] Error parsing initial message:', err);
         }
-        await origOnMessage(event);
       };
     });
   }
@@ -157,22 +163,32 @@ class WebRTCManager {
         break;
       }
 
-      // Presenter receives new viewer notification -> initiate WebRTC offer
+      // Presenter receives new viewer notification
       case 'peer-joined': {
         if (this.role === 'presenter') {
           console.log(`[WebRTC] Viewer joined: ${msg.peerId}`);
-          await this.initiatePeerConnection(msg.peerId);
+          if (this.activeStream) {
+            // Stream is already live — connect immediately with video
+            await this.initiatePeerConnection(msg.peerId);
+          } else {
+            // Stream not started yet — queue this viewer
+            console.log(`[WebRTC] Stream not live yet, queuing viewer: ${msg.peerId}`);
+            this.pendingViewers.add(msg.peerId);
+          }
         }
         break;
       }
 
       // Presenter receives viewer exit
       case 'peer-left': {
-        if (this.role === 'presenter' && this.peers.has(msg.peerId)) {
+        if (this.role === 'presenter') {
           console.log(`[WebRTC] Viewer left: ${msg.peerId}`);
-          const peer = this.peers.get(msg.peerId);
-          if (peer.pc) peer.pc.close();
-          this.peers.delete(msg.peerId);
+          this.pendingViewers.delete(msg.peerId);
+          if (this.peers.has(msg.peerId)) {
+            const peer = this.peers.get(msg.peerId);
+            if (peer.pc) peer.pc.close();
+            this.peers.delete(msg.peerId);
+          }
         }
         break;
       }
@@ -191,19 +207,19 @@ class WebRTCManager {
         if (this.role === 'presenter' && this.peers.has(msg.senderId)) {
           console.log(`[WebRTC] Received answer from viewer: ${msg.senderId}`);
           const peer = this.peers.get(msg.senderId);
-          await peer.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-
-          // Flush any buffered ICE candidates that arrived before remoteDescription
-          if (peer.iceQueue && peer.iceQueue.length > 0) {
-            console.log(`[WebRTC] Flushing ${peer.iceQueue.length} queued ICE candidates on presenter`);
-            while (peer.iceQueue.length > 0) {
+          try {
+            await peer.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+            // Flush any buffered ICE candidates
+            while (peer.iceQueue && peer.iceQueue.length > 0) {
               const cand = peer.iceQueue.shift();
               try {
                 await peer.pc.addIceCandidate(new RTCIceCandidate(cand));
               } catch (e) {
-                console.warn('[WebRTC] Error adding buffered ICE on presenter:', e);
+                console.warn('[WebRTC] Error adding buffered ICE:', e);
               }
             }
+          } catch (err) {
+            console.error('[WebRTC] Error setting remote description on presenter:', err);
           }
         }
         break;
@@ -254,14 +270,21 @@ class WebRTCManager {
   // ==========================================
 
   async initiatePeerConnection(viewerId) {
+    // Close any existing connection for this viewer
+    if (this.peers.has(viewerId)) {
+      const old = this.peers.get(viewerId);
+      if (old.pc) old.pc.close();
+    }
+
     const pc = new RTCPeerConnection(this.rtcConfig);
     const dataChannel = pc.createDataChannel('aero-sync', { ordered: true });
     this.setupDataChannel(dataChannel);
 
     this.peers.set(viewerId, { pc, dataChannel, iceQueue: [] });
 
-    // Add active media tracks (Screen + Audio)
+    // Add ALL active stream tracks — stream is guaranteed live at this point
     if (this.activeStream) {
+      console.log(`[WebRTC] Adding ${this.activeStream.getTracks().length} tracks for viewer ${viewerId}`);
       this.activeStream.getTracks().forEach((track) => {
         pc.addTrack(track, this.activeStream);
       });
@@ -278,14 +301,23 @@ class WebRTCManager {
 
     pc.onconnectionstatechange = () => {
       console.log(`[WebRTC] Connection state with ${viewerId}: ${pc.connectionState}`);
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      if (pc.connectionState === 'failed') {
+        console.warn(`[WebRTC] Connection failed for ${viewerId}, attempting ICE restart`);
+        this.restartIce(viewerId);
+      }
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
         this.peers.delete(viewerId);
       }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[WebRTC] ICE state with ${viewerId}: ${pc.iceConnectionState}`);
     };
 
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      console.log(`[WebRTC] Sending offer to viewer ${viewerId}, has video: ${offer.sdp.includes('m=video')}`);
 
       this.send('webrtc-offer', {
         targetId: viewerId,
@@ -296,55 +328,87 @@ class WebRTCManager {
     }
   }
 
-  // Update stream for all connected viewers when presenter starts/switches screen
+  async restartIce(viewerId) {
+    const peer = this.peers.get(viewerId);
+    if (!peer || !peer.pc || peer.pc.signalingState === 'closed') return;
+    try {
+      const offer = await peer.pc.createOffer({ iceRestart: true });
+      await peer.pc.setLocalDescription(offer);
+      this.send('webrtc-offer', { targetId: viewerId, sdp: offer });
+    } catch (err) {
+      console.warn('[WebRTC] ICE restart failed:', err);
+    }
+  }
+
+  // Called when presenter starts/changes/stops sharing screen
   updateActiveStream(stream) {
     this.activeStream = stream;
     if (this.role !== 'presenter') return;
 
-    this.peers.forEach(async (peer, viewerId) => {
-      if (!peer.pc || peer.pc.signalingState === 'closed') return;
+    if (stream) {
+      // Connect any viewers who were queued (joined before stream started)
+      if (this.pendingViewers.size > 0) {
+        console.log(`[WebRTC] Stream now live — connecting ${this.pendingViewers.size} pending viewers`);
+        const toConnect = [...this.pendingViewers];
+        this.pendingViewers.clear();
+        toConnect.forEach(viewerId => {
+          this.initiatePeerConnection(viewerId);
+        });
+      }
 
-      if (!stream) {
-        // If stream stopped, clear tracks
+      // For already-connected peers: replace tracks (no renegotiation needed for replaceTrack)
+      this.peers.forEach(async (peer, viewerId) => {
+        if (!peer.pc || peer.pc.signalingState === 'closed') return;
+        const senders = peer.pc.getSenders();
+        const videoTrack = stream.getVideoTracks()[0];
+        const audioTrack = stream.getAudioTracks()[0];
+
+        let videoReplaced = false;
+        let audioReplaced = false;
+
+        for (const sender of senders) {
+          if (sender.track && sender.track.kind === 'video' && videoTrack) {
+            await sender.replaceTrack(videoTrack);
+            videoReplaced = true;
+          }
+          if (sender.track && sender.track.kind === 'audio' && audioTrack) {
+            await sender.replaceTrack(audioTrack);
+            audioReplaced = true;
+          }
+        }
+
+        // If tracks weren't replaced (new kind), need to add them + renegotiate
+        if (!videoReplaced && videoTrack) {
+          peer.pc.addTrack(videoTrack, stream);
+          await this._renegotiate(viewerId, peer.pc);
+        }
+        if (!audioReplaced && audioTrack) {
+          peer.pc.addTrack(audioTrack, stream);
+          // Only renegotiate once if both needed (already done above if video triggered it)
+          if (videoReplaced) {
+            await this._renegotiate(viewerId, peer.pc);
+          }
+        }
+      });
+    } else {
+      // Stream stopped: null out all tracks
+      this.peers.forEach((peer) => {
+        if (!peer.pc || peer.pc.signalingState === 'closed') return;
         peer.pc.getSenders().forEach((s) => {
           s.replaceTrack(null).catch(() => {});
         });
-        return;
-      }
+      });
+    }
+  }
 
-      const senders = peer.pc.getSenders();
-      const videoTrack = stream.getVideoTracks()[0];
-      const audioTrack = stream.getAudioTracks()[0];
-
-      // Video sender handling: replace existing or add new track
-      let videoSender = senders.find(s => s.track && s.track.kind === 'video') ||
-                        senders.find(s => !s.track);
-      if (videoSender && videoTrack) {
-        await videoSender.replaceTrack(videoTrack);
-      } else if (videoTrack) {
-        peer.pc.addTrack(videoTrack, stream);
-      }
-
-      // Audio sender handling
-      let audioSender = senders.find(s => s.track && s.track.kind === 'audio');
-      if (audioSender && audioTrack) {
-        await audioSender.replaceTrack(audioTrack);
-      } else if (audioTrack) {
-        peer.pc.addTrack(audioTrack, stream);
-      }
-
-      // Always send renegotiation offer so receiver configures hardware decoder
-      try {
-        const offer = await peer.pc.createOffer();
-        await peer.pc.setLocalDescription(offer);
-        this.send('webrtc-offer', {
-          targetId: viewerId,
-          sdp: offer
-        });
-      } catch (err) {
-        console.error('[WebRTC] Renegotiation error in updateActiveStream:', err);
-      }
-    });
+  async _renegotiate(viewerId, pc) {
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      this.send('webrtc-offer', { targetId: viewerId, sdp: offer });
+    } catch (err) {
+      console.error('[WebRTC] Renegotiation error:', err);
+    }
   }
 
   // ==========================================
@@ -353,96 +417,79 @@ class WebRTCManager {
 
   async handleOffer(presenterId, sdp) {
     let pc = this.presenterPc;
-    const isNewConnection = !pc || pc.signalingState === 'closed';
 
-    // IMPORTANT: Only create a new RTCPeerConnection if one doesn't exist or was closed.
-    // Re-using the connection preserves ICE state and prevents connection tear-down during renegotiation!
-    if (isNewConnection) {
+    // Only create a new RTCPeerConnection if none exists or was closed
+    if (!pc || pc.signalingState === 'closed') {
       pc = new RTCPeerConnection(this.rtcConfig);
       this.presenterPc = pc;
-      // Create a single persistent MediaStream that persists across renegotiations
+      // Single persistent MediaStream — tracks added to it, never replaced
       this.remoteStream = new MediaStream();
 
       pc.ontrack = (event) => {
         const track = event.track;
-        console.log('[WebRTC] ontrack received:', track.kind, 'id:', track.id);
+        console.log('[WebRTC] ontrack:', track.kind, 'readyState:', track.readyState, 'muted:', track.muted);
 
-        // Add track to our persistent stream (avoid duplicates)
-        const existingTrack = this.remoteStream.getTracks().find(t => t.kind === track.kind);
-        if (existingTrack) {
-          console.log('[WebRTC] Replacing existing', track.kind, 'track in remote stream');
-          this.remoteStream.removeTrack(existingTrack);
+        // Replace existing track of same kind in our persistent stream
+        const existing = this.remoteStream.getTracks().find(t => t.kind === track.kind);
+        if (existing) {
+          this.remoteStream.removeTrack(existing);
         }
         this.remoteStream.addTrack(track);
 
-        // Notify app only once with our persistent stream reference
+        // Notify app with stable stream reference
         this.onRemoteStream(this.remoteStream);
 
-        // Handle track ending (e.g. presenter stops sharing)
-        track.onended = () => {
-          console.log('[WebRTC] Remote track ended:', track.kind);
-          this.remoteStream.removeTrack(track);
-        };
-
-        track.onmute = () => {
-          console.log('[WebRTC] Remote track muted:', track.kind);
-        };
-
         track.onunmute = () => {
-          console.log('[WebRTC] Remote track unmuted:', track.kind);
-          // Re-notify when track unmutes (e.g. presenter resumes)
+          console.log('[WebRTC] Track unmuted:', track.kind);
           this.onRemoteStream(this.remoteStream);
+        };
+        track.onended = () => {
+          console.log('[WebRTC] Track ended:', track.kind);
         };
       };
 
       pc.ondatachannel = (event) => {
-        console.log('[WebRTC] Received DataChannel from presenter');
+        console.log('[WebRTC] DataChannel received');
         this.presenterDataChannel = event.channel;
         this.setupDataChannel(event.channel);
       };
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          this.send('webrtc-ice', {
-            targetId: presenterId,
-            candidate: event.candidate
-          });
+          this.send('webrtc-ice', { targetId: presenterId, candidate: event.candidate });
         }
       };
 
       pc.onconnectionstatechange = () => {
-        console.log(`[WebRTC] Viewer connection state: ${pc.connectionState}`);
+        console.log(`[WebRTC] Viewer connection: ${pc.connectionState}`);
       };
 
       pc.oniceconnectionstatechange = () => {
-        console.log(`[WebRTC] ICE connection state: ${pc.iceConnectionState}`);
+        console.log(`[WebRTC] Viewer ICE: ${pc.iceConnectionState}`);
       };
     }
 
     try {
-      console.log('[WebRTC] Setting remote description, signalingState:', pc.signalingState);
+      console.log('[WebRTC] setRemoteDescription, signalingState:', pc.signalingState);
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
 
-      // Process any buffered ICE candidates on viewer
+      // Flush buffered ICE candidates
       while (this.iceCandidateQueue.length > 0) {
         const candidate = this.iceCandidateQueue.shift();
         try {
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (e) {
-          console.warn('[WebRTC] Error adding buffered ICE on viewer:', e);
+          console.warn('[WebRTC] Buffered ICE add error:', e);
         }
       }
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      console.log('[WebRTC] Sending answer to presenter');
+      console.log('[WebRTC] Answer sent');
 
-      this.send('webrtc-answer', {
-        targetId: presenterId,
-        sdp: answer
-      });
+      this.send('webrtc-answer', { targetId: presenterId, sdp: answer });
     } catch (err) {
-      console.error('[WebRTC] Error handling offer:', err);
+      console.error('[WebRTC] handleOffer error:', err);
     }
   }
 
@@ -455,7 +502,7 @@ class WebRTCManager {
         try {
           await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-          console.error('[WebRTC] Error adding ICE candidate on presenter:', err);
+          console.warn('[WebRTC] ICE add error (presenter):', err);
         }
       } else {
         if (!peer.iceQueue) peer.iceQueue = [];
@@ -466,7 +513,7 @@ class WebRTCManager {
         try {
           await this.presenterPc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-          console.error('[WebRTC] Error adding ICE candidate on viewer:', err);
+          console.warn('[WebRTC] ICE add error (viewer):', err);
         }
       } else {
         this.iceCandidateQueue.push(candidate);
@@ -475,14 +522,11 @@ class WebRTCManager {
   }
 
   // ==========================================
-  // DATA CHANNEL: Ultra-Low-Latency Sync
+  // DATA CHANNEL: Annotation Sync
   // ==========================================
 
   setupDataChannel(channel) {
-    channel.onopen = () => {
-      console.log('[DataChannel] Open');
-    };
-
+    channel.onopen = () => console.log('[DataChannel] Open');
     channel.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
@@ -490,15 +534,13 @@ class WebRTCManager {
           this.onAnnotationReceived(payload.action, payload.data);
         }
       } catch (err) {
-        console.error('[DataChannel] Error parsing message:', err);
+        console.error('[DataChannel] Parse error:', err);
       }
     };
   }
 
   broadcastAnnotation(action, data) {
     const payload = JSON.stringify({ type: 'annotation', action, data });
-
-    // Send via DataChannel to all connected peers
     let sentViaDataChannel = false;
     this.peers.forEach((peer) => {
       if (peer.dataChannel && peer.dataChannel.readyState === 'open') {
@@ -506,24 +548,14 @@ class WebRTCManager {
         sentViaDataChannel = true;
       }
     });
-
-    // Fallback over WebSocket signaling server if no data channels are open
     if (!sentViaDataChannel) {
       this.send('annotation-sync', { action, data });
     }
   }
 
-  sendChatMessage(text) {
-    this.send('chat-message', { text });
-  }
-
-  sendEmojiReaction(emoji) {
-    this.send('emoji-reaction', { emoji });
-  }
-
-  raiseHand() {
-    this.send('raise-hand');
-  }
+  sendChatMessage(text) { this.send('chat-message', { text }); }
+  sendEmojiReaction(emoji) { this.send('emoji-reaction', { emoji }); }
+  raiseHand() { this.send('raise-hand'); }
 
   leave() {
     this.send('leave-room');
@@ -531,10 +563,9 @@ class WebRTCManager {
       this.presenterPc.close();
       this.presenterPc = null;
     }
-    this.peers.forEach((peer) => {
-      if (peer.pc) peer.pc.close();
-    });
+    this.peers.forEach((peer) => { if (peer.pc) peer.pc.close(); });
     this.peers.clear();
+    this.pendingViewers.clear();
   }
 }
 
