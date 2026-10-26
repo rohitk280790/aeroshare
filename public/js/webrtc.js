@@ -13,6 +13,7 @@ class WebRTCManager {
     this.presenterDataChannel = null;
     this.iceCandidateQueue = [];
     this.activeStream = null;
+    this.remoteStream = null; // Single persistent MediaStream for viewer
 
     this.rtcConfig = {
       iceServers: [
@@ -301,36 +302,47 @@ class WebRTCManager {
     if (this.role !== 'presenter') return;
 
     this.peers.forEach(async (peer, viewerId) => {
+      if (!peer.pc || peer.pc.signalingState === 'closed') return;
+
+      if (!stream) {
+        // If stream stopped, clear tracks
+        peer.pc.getSenders().forEach((s) => {
+          s.replaceTrack(null).catch(() => {});
+        });
+        return;
+      }
+
       const senders = peer.pc.getSenders();
-      
-      // If we already have senders, replace tracks
-      if (senders.length > 0 && stream) {
-        const videoTrack = stream.getVideoTracks()[0];
-        const audioTrack = stream.getAudioTracks()[0];
+      const videoTrack = stream.getVideoTracks()[0];
+      const audioTrack = stream.getAudioTracks()[0];
 
-        senders.forEach((sender) => {
-          if (sender.track && sender.track.kind === 'video' && videoTrack) {
-            sender.replaceTrack(videoTrack);
-          } else if (sender.track && sender.track.kind === 'audio' && audioTrack) {
-            sender.replaceTrack(audioTrack);
-          }
-        });
-      } else if (stream) {
-        // Add tracks and renegotiate
-        stream.getTracks().forEach((track) => {
-          peer.pc.addTrack(track, stream);
-        });
+      // Video sender handling: replace existing or add new track
+      let videoSender = senders.find(s => s.track && s.track.kind === 'video') ||
+                        senders.find(s => !s.track);
+      if (videoSender && videoTrack) {
+        await videoSender.replaceTrack(videoTrack);
+      } else if (videoTrack) {
+        peer.pc.addTrack(videoTrack, stream);
+      }
 
-        try {
-          const offer = await peer.pc.createOffer();
-          await peer.pc.setLocalDescription(offer);
-          this.send('webrtc-offer', {
-            targetId: viewerId,
-            sdp: offer
-          });
-        } catch (err) {
-          console.error('[WebRTC] Renegotiation error:', err);
-        }
+      // Audio sender handling
+      let audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+      if (audioSender && audioTrack) {
+        await audioSender.replaceTrack(audioTrack);
+      } else if (audioTrack) {
+        peer.pc.addTrack(audioTrack, stream);
+      }
+
+      // Always send renegotiation offer so receiver configures hardware decoder
+      try {
+        const offer = await peer.pc.createOffer();
+        await peer.pc.setLocalDescription(offer);
+        this.send('webrtc-offer', {
+          targetId: viewerId,
+          sdp: offer
+        });
+      } catch (err) {
+        console.error('[WebRTC] Renegotiation error in updateActiveStream:', err);
       }
     });
   }
@@ -341,25 +353,46 @@ class WebRTCManager {
 
   async handleOffer(presenterId, sdp) {
     let pc = this.presenterPc;
+    const isNewConnection = !pc || pc.signalingState === 'closed';
 
     // IMPORTANT: Only create a new RTCPeerConnection if one doesn't exist or was closed.
     // Re-using the connection preserves ICE state and prevents connection tear-down during renegotiation!
-    if (!pc || pc.signalingState === 'closed') {
+    if (isNewConnection) {
       pc = new RTCPeerConnection(this.rtcConfig);
       this.presenterPc = pc;
+      // Create a single persistent MediaStream that persists across renegotiations
+      this.remoteStream = new MediaStream();
 
       pc.ontrack = (event) => {
-        console.log('[WebRTC] Received remote stream track:', event.track.kind);
-        if (event.streams && event.streams[0]) {
-          this.onRemoteStream(event.streams[0]);
-        } else {
-          // Fallback if streams array is empty: construct a MediaStream from track
-          if (!this.remoteMediaStream) {
-            this.remoteMediaStream = new MediaStream();
-          }
-          this.remoteMediaStream.addTrack(event.track);
-          this.onRemoteStream(this.remoteMediaStream);
+        const track = event.track;
+        console.log('[WebRTC] ontrack received:', track.kind, 'id:', track.id);
+
+        // Add track to our persistent stream (avoid duplicates)
+        const existingTrack = this.remoteStream.getTracks().find(t => t.kind === track.kind);
+        if (existingTrack) {
+          console.log('[WebRTC] Replacing existing', track.kind, 'track in remote stream');
+          this.remoteStream.removeTrack(existingTrack);
         }
+        this.remoteStream.addTrack(track);
+
+        // Notify app only once with our persistent stream reference
+        this.onRemoteStream(this.remoteStream);
+
+        // Handle track ending (e.g. presenter stops sharing)
+        track.onended = () => {
+          console.log('[WebRTC] Remote track ended:', track.kind);
+          this.remoteStream.removeTrack(track);
+        };
+
+        track.onmute = () => {
+          console.log('[WebRTC] Remote track muted:', track.kind);
+        };
+
+        track.onunmute = () => {
+          console.log('[WebRTC] Remote track unmuted:', track.kind);
+          // Re-notify when track unmutes (e.g. presenter resumes)
+          this.onRemoteStream(this.remoteStream);
+        };
       };
 
       pc.ondatachannel = (event) => {
@@ -380,9 +413,14 @@ class WebRTCManager {
       pc.onconnectionstatechange = () => {
         console.log(`[WebRTC] Viewer connection state: ${pc.connectionState}`);
       };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log(`[WebRTC] ICE connection state: ${pc.iceConnectionState}`);
+      };
     }
 
     try {
+      console.log('[WebRTC] Setting remote description, signalingState:', pc.signalingState);
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
 
       // Process any buffered ICE candidates on viewer
@@ -397,6 +435,7 @@ class WebRTCManager {
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      console.log('[WebRTC] Sending answer to presenter');
 
       this.send('webrtc-answer', {
         targetId: presenterId,

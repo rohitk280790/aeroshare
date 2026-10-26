@@ -218,21 +218,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   webrtc.onRemoteStream = (stream) => {
-    console.log('[App] Attaching remote stream to video element', stream);
-    screenVideo.srcObject = stream;
-    screenVideo.muted = true; // Muted by default to satisfy browser autoplay policy
+    console.log('[App] onRemoteStream called, tracks:', stream.getTracks().map(t => t.kind + ':' + t.readyState));
+
+    // Only update srcObject if it's a different stream — prevents black flash during renegotiation
+    if (screenVideo.srcObject !== stream) {
+      console.log('[App] Attaching new remote stream to video element');
+      screenVideo.srcObject = stream;
+      screenVideo.muted = true; // Muted by default to satisfy browser autoplay policy
+    }
+
+    const tapOverlay = document.getElementById('tap-to-play-overlay');
 
     const playVideo = () => {
-      screenVideo.play().catch(e => {
-        console.warn('Autoplay waiting for user interaction:', e);
-      });
+      const playPromise = screenVideo.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          // Playback started successfully - hide tap overlay
+          if (tapOverlay) tapOverlay.classList.add('hidden');
+        }).catch(err => {
+          console.warn('[App] Autoplay blocked - showing tap-to-play overlay:', err.name);
+          // Show tap-to-play overlay for mobile autoplay restrictions
+          if (tapOverlay) tapOverlay.classList.remove('hidden');
+        });
+      }
     };
 
-    screenVideo.onloadedmetadata = playVideo;
-    playVideo();
+    if (screenVideo.readyState >= 2) {
+      // Already have enough data to play
+      playVideo();
+    } else {
+      screenVideo.onloadedmetadata = playVideo;
+      // Also try playing directly in case metadata is already available
+      playVideo();
+    }
 
     hideEmptyStage();
-    ui.showToast('Presenter screen stream connected!', 'success');
+    ui.showToast('Screen stream connected!', 'success');
 
     // Show unmute button if stream contains audio
     if (stream.getAudioTracks().length > 0 && btnStageUnmute) {
@@ -828,6 +849,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  // Tap-to-play overlay for mobile autoplay restrictions
+  const tapToPlayOverlay = document.getElementById('tap-to-play-overlay');
+  const btnTapToPlay = document.getElementById('btn-tap-to-play');
+  if (btnTapToPlay && tapToPlayOverlay) {
+    btnTapToPlay.addEventListener('click', () => {
+      screenVideo.muted = true; // Must be muted for autoplay
+      screenVideo.play().then(() => {
+        tapToPlayOverlay.classList.add('hidden');
+        ui.showToast('Stream playing! Tap 🔊 to unmute audio.', 'success');
+      }).catch(err => {
+        console.error('[App] Could not play video:', err);
+      });
+    });
+  }
+
+  // Hide tap overlay when video starts playing naturally
+  screenVideo.addEventListener('playing', () => {
+    if (tapToPlayOverlay) tapToPlayOverlay.classList.add('hidden');
+  });
 
   // Drawer Toggle
   btnToggleDrawer.addEventListener('click', () => ui.toggleDrawer());

@@ -13,8 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/studio.css">
+  <link rel="stylesheet" href="css/style.css?v=2.7">
+  <link rel="stylesheet" href="css/studio.css?v=2.7">
 </head>
 <body class="theme-dark">
 
@@ -243,8 +243,16 @@
       <!-- Stage Viewport -->
       <section id="stage-viewport" class="stage-viewport">
         <div id="video-wrapper" class="video-wrapper">
-          <!-- Active Screen Video Element -->
-          <video id="screen-video" autoplay playsinline muted></video>
+          <!-- Active Screen Video Element (Configured for Mobile Autoplay) -->
+          <video id="screen-video" autoplay playsinline webkit-playsinline muted></video>
+
+          <!-- Tap to Play Mobile Fallback Overlay -->
+          <div id="tap-to-play-overlay" class="tap-to-play-overlay hidden">
+            <button id="btn-tap-to-play" class="btn btn-primary btn-pulse" type="button">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Tap to Watch Live Screen</span>
+            </button>
+          </div>
 
           <!-- Transparent Annotation Canvas Layer (Presenter & Viewer Sync) -->
           <canvas id="annotation-canvas" class="annotation-canvas"></canvas>
@@ -722,14 +730,14 @@
     </div>
   </dialog>
 
-  <!-- Razorpay Checkout & Application Scripts -->
+  <!-- Razorpay Checkout & Application Scripts with Cache-Busting -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="js/webrtc.js"></script>
-  <script src="js/screen.js"></script>
-  <script src="js/annotations.js"></script>
-  <script src="js/webcam.js"></script>
-  <script src="js/recorder.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/webrtc.js?v=2.7"></script>
+  <script src="js/screen.js?v=2.7"></script>
+  <script src="js/annotations.js?v=2.7"></script>
+  <script src="js/webcam.js?v=2.7"></script>
+  <script src="js/recorder.js?v=2.7"></script>
+  <script src="js/ui.js?v=2.7"></script>
+  <script src="js/app.js?v=2.7"></script>
 </body>
 </html>
