@@ -17,8 +17,29 @@ class WebRTCManager {
     this.rtcConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        // Public OpenRelay TURN servers (Required for NAT traversal on mobile networks / Render)
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelay',
+          credential: 'openrelay'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelay',
+          credential: 'openrelay'
+        },
+        {
+          urls: 'turns:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelay',
+          credential: 'openrelay'
+        }
+      ],
+      iceCandidatePoolSize: 10
     };
 
     // Event hooks
@@ -170,6 +191,19 @@ class WebRTCManager {
           console.log(`[WebRTC] Received answer from viewer: ${msg.senderId}`);
           const peer = this.peers.get(msg.senderId);
           await peer.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+
+          // Flush any buffered ICE candidates that arrived before remoteDescription
+          if (peer.iceQueue && peer.iceQueue.length > 0) {
+            console.log(`[WebRTC] Flushing ${peer.iceQueue.length} queued ICE candidates on presenter`);
+            while (peer.iceQueue.length > 0) {
+              const cand = peer.iceQueue.shift();
+              try {
+                await peer.pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn('[WebRTC] Error adding buffered ICE on presenter:', e);
+              }
+            }
+          }
         }
         break;
       }
@@ -223,7 +257,7 @@ class WebRTCManager {
     const dataChannel = pc.createDataChannel('aero-sync', { ordered: true });
     this.setupDataChannel(dataChannel);
 
-    this.peers.set(viewerId, { pc, dataChannel });
+    this.peers.set(viewerId, { pc, dataChannel, iceQueue: [] });
 
     // Add active media tracks (Screen + Audio)
     if (this.activeStream) {
@@ -306,42 +340,59 @@ class WebRTCManager {
   // ==========================================
 
   async handleOffer(presenterId, sdp) {
-    if (this.presenterPc) {
-      this.presenterPc.close();
+    let pc = this.presenterPc;
+
+    // IMPORTANT: Only create a new RTCPeerConnection if one doesn't exist or was closed.
+    // Re-using the connection preserves ICE state and prevents connection tear-down during renegotiation!
+    if (!pc || pc.signalingState === 'closed') {
+      pc = new RTCPeerConnection(this.rtcConfig);
+      this.presenterPc = pc;
+
+      pc.ontrack = (event) => {
+        console.log('[WebRTC] Received remote stream track:', event.track.kind);
+        if (event.streams && event.streams[0]) {
+          this.onRemoteStream(event.streams[0]);
+        } else {
+          // Fallback if streams array is empty: construct a MediaStream from track
+          if (!this.remoteMediaStream) {
+            this.remoteMediaStream = new MediaStream();
+          }
+          this.remoteMediaStream.addTrack(event.track);
+          this.onRemoteStream(this.remoteMediaStream);
+        }
+      };
+
+      pc.ondatachannel = (event) => {
+        console.log('[WebRTC] Received DataChannel from presenter');
+        this.presenterDataChannel = event.channel;
+        this.setupDataChannel(event.channel);
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          this.send('webrtc-ice', {
+            targetId: presenterId,
+            candidate: event.candidate
+          });
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log(`[WebRTC] Viewer connection state: ${pc.connectionState}`);
+      };
     }
-
-    const pc = new RTCPeerConnection(this.rtcConfig);
-    this.presenterPc = pc;
-
-    pc.ontrack = (event) => {
-      console.log('[WebRTC] Received remote stream track:', event.track.kind);
-      if (event.streams && event.streams[0]) {
-        this.onRemoteStream(event.streams[0]);
-      }
-    };
-
-    pc.ondatachannel = (event) => {
-      console.log('[WebRTC] Received DataChannel from presenter');
-      this.presenterDataChannel = event.channel;
-      this.setupDataChannel(event.channel);
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.send('webrtc-ice', {
-          targetId: presenterId,
-          candidate: event.candidate
-        });
-      }
-    };
 
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
 
-      // Process any buffered ICE candidates
+      // Process any buffered ICE candidates on viewer
       while (this.iceCandidateQueue.length > 0) {
         const candidate = this.iceCandidateQueue.shift();
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {
+          console.warn('[WebRTC] Error adding buffered ICE on viewer:', e);
+        }
       }
 
       const answer = await pc.createAnswer();
@@ -361,10 +412,15 @@ class WebRTCManager {
 
     if (this.role === 'presenter' && this.peers.has(senderId)) {
       const peer = this.peers.get(senderId);
-      try {
-        await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (err) {
-        console.error('[WebRTC] Error adding ICE candidate:', err);
+      if (peer.pc && peer.pc.remoteDescription) {
+        try {
+          await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.error('[WebRTC] Error adding ICE candidate on presenter:', err);
+        }
+      } else {
+        if (!peer.iceQueue) peer.iceQueue = [];
+        peer.iceQueue.push(candidate);
       }
     } else if (this.role === 'viewer') {
       if (this.presenterPc && this.presenterPc.remoteDescription) {

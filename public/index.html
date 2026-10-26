@@ -244,7 +244,7 @@
       <section id="stage-viewport" class="stage-viewport">
         <div id="video-wrapper" class="video-wrapper">
           <!-- Active Screen Video Element -->
-          <video id="screen-video" autoplay playsinline></video>
+          <video id="screen-video" autoplay playsinline muted></video>
 
           <!-- Transparent Annotation Canvas Layer (Presenter & Viewer Sync) -->
           <canvas id="annotation-canvas" class="annotation-canvas"></canvas>
@@ -337,8 +337,11 @@
           <!-- Reaction Burst Layer -->
           <div id="reaction-burst-container" class="reaction-burst-layer"></div>
 
-          <!-- Quick Stage Overlay Controls (Fullscreen & Snapshot) -->
+          <!-- Quick Stage Overlay Controls (Fullscreen, Snapshot & Unmute) -->
           <div class="stage-overlay-controls">
+            <button id="btn-stage-unmute" class="btn-icon-glass hidden" title="Unmute Presentation Audio">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            </button>
             <button id="btn-stage-snapshot" class="btn-icon-glass" title="Take HD Screenshot">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </button>

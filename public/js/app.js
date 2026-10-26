@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnEmptyStartShare = document.getElementById('btn-empty-start-share');
   const btnStageSnapshot = document.getElementById('btn-stage-snapshot');
   const btnStageFullscreen = document.getElementById('btn-stage-fullscreen');
+  const btnStageUnmute = document.getElementById('btn-stage-unmute');
 
   // Presenter Broadcasting Card & Local Preview Controls
   const presenterActiveCard = document.getElementById('presenter-active-card');
@@ -217,11 +218,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   webrtc.onRemoteStream = (stream) => {
-    console.log('[App] Attaching remote stream to video element');
+    console.log('[App] Attaching remote stream to video element', stream);
     screenVideo.srcObject = stream;
-    screenVideo.play().catch(e => console.warn('Autoplay error:', e));
+    screenVideo.muted = true; // Muted by default to satisfy browser autoplay policy
+
+    const playVideo = () => {
+      screenVideo.play().catch(e => {
+        console.warn('Autoplay waiting for user interaction:', e);
+      });
+    };
+
+    screenVideo.onloadedmetadata = playVideo;
+    playVideo();
+
     hideEmptyStage();
-    ui.showToast('Presenter screen stream received!', 'success');
+    ui.showToast('Presenter screen stream connected!', 'success');
+
+    // Show unmute button if stream contains audio
+    if (stream.getAudioTracks().length > 0 && btnStageUnmute) {
+      btnStageUnmute.classList.remove('hidden');
+    }
   };
 
   webrtc.onPresenterStatus = (isSharing) => {
@@ -799,6 +815,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnStageFullscreen.addEventListener('click', () => {
     ui.toggleFullscreen(videoWrapper);
   });
+
+  if (btnStageUnmute) {
+    btnStageUnmute.addEventListener('click', () => {
+      screenVideo.muted = !screenVideo.muted;
+      if (screenVideo.muted) {
+        btnStageUnmute.classList.remove('dock-btn-active');
+        ui.showToast('Stream audio muted', 'info');
+      } else {
+        btnStageUnmute.classList.add('dock-btn-active');
+        ui.showToast('Stream audio unmuted', 'success');
+      }
+    });
+  }
 
   // Drawer Toggle
   btnToggleDrawer.addEventListener('click', () => ui.toggleDrawer());
