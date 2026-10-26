@@ -1,5 +1,5 @@
 /**
- * AeroShare — WebRTC Peer-to-Peer & WebSocket Signaling Client
+ * RoKaShare — WebRTC Peer-to-Peer & WebSocket Signaling Client
  * 
  * Architecture:
  * - Viewers who join BEFORE presenter starts sharing are queued (pendingViewers)

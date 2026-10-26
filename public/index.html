@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AeroShare — Ultra-Fast WebRTC Screen Sharing & Presentation Studio</title>
+  <title>RoKaShare — Ultra-Fast WebRTC Screen Sharing & Presentation Studio</title>
   <meta name="description" content="Free, secure, ultra-low latency WebRTC screen sharing web app. Stream full screen, window, or tab with webcam PiP, live drawing annotations, and HD recording.">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   
@@ -31,8 +31,8 @@
   <main id="view-lobby" class="view-active lobby-view">
     <header class="lobby-header">
       <div class="brand">
-        <img src="assets/favicon.svg" alt="AeroShare Logo" class="brand-icon">
-        <span class="brand-text">Aero<span class="brand-highlight">Share</span></span>
+        <img src="assets/favicon.svg" alt="RoKaShare Logo" class="brand-icon">
+        <span class="brand-text">RoKa<span class="brand-highlight">Share</span></span>
         <span class="badge badge-studio">STUDIO</span>
       </div>
       <div style="display:flex; align-items:center; gap:12px;">
@@ -168,6 +168,11 @@
           <span>HD 60FPS Video Recorder</span>
         </div>
       </div>
+
+      <!-- Creator Branding Footer -->
+      <footer style="margin-top: 36px; text-align: center; font-size: 0.85rem; color: var(--text-muted);">
+        <span>RoKaShare &bull; Crafted by <strong>Rohit Kautkar</strong></span>
+      </footer>
     </div>
   </main>
 
@@ -180,8 +185,8 @@
     <header class="studio-header">
       <div class="header-left">
         <div class="brand-mini">
-          <img src="assets/favicon.svg" alt="AeroShare" class="brand-icon-mini">
-          <span class="brand-title-mini">AeroShare</span>
+          <img src="assets/favicon.svg" alt="RoKaShare" class="brand-icon-mini">
+          <span class="brand-title-mini">RoKaShare</span>
         </div>
         <span id="role-badge" class="badge badge-host">HOST</span>
 
@@ -318,7 +323,7 @@
                   <span class="tip-title">Why the repeating tunnel (infinity loop) happens:</span>
                 </div>
                 <p class="tip-body">
-                  When you look at this AeroShare tab while sharing your entire screen, it reflects itself like two mirrors facing each other.<br>
+                  When you look at this RoKaShare tab while sharing your entire screen, it reflects itself like two mirrors facing each other.<br>
                   <strong>Don't worry — your viewers see whatever you switch to!</strong> Just switch to your presentation, PDF, code editor, or another browser tab.
                 </p>
               </div>
@@ -375,7 +380,7 @@
         <div id="tab-content-chat" class="tab-pane pane-active">
           <div id="chat-messages-container" class="chat-messages">
             <div class="system-message">
-              <span>Welcome to AeroShare room. Messages and emoji reactions are live!</span>
+              <span>Welcome to RoKaShare room. Messages and emoji reactions are live!</span>
             </div>
           </div>
 
@@ -610,7 +615,7 @@
 
         <div class="modal-actions">
           <button id="btn-discard-recording" class="btn btn-glass">Discard</button>
-          <a id="btn-download-recording" class="btn btn-secondary" download="AeroShare-Recording.webm">
+          <a id="btn-download-recording" class="btn btn-secondary" download="RoKaShare-Recording.webm">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>Download Local Video (.webm)</span>
           </a>
@@ -664,7 +669,7 @@
     <div class="modal-card modal-lg">
       <div class="modal-header">
         <div>
-          <h3 class="modal-title">Upgrade to AeroShare Pro</h3>
+          <h3 class="modal-title">Upgrade to RoKaShare Pro</h3>
           <p class="modal-desc" style="margin-bottom:0">Unlock unlimited 4K recording, cloud links, and AI summaries.</p>
         </div>
         <button class="modal-close" id="btn-close-pricing">✕</button>
@@ -689,7 +694,7 @@
           <!-- Pro Plan (Recommended) -->
           <div class="pricing-card pricing-popular">
             <div class="popular-ribbon">POPULAR</div>
-            <span class="pricing-plan-name text-cyan">AeroShare Pro</span>
+            <span class="pricing-plan-name text-cyan">RoKaShare Pro</span>
             <div class="pricing-price">₹799 <span class="pricing-period">/ month</span></div>
             <p class="pricing-desc">For professionals, founders, developers & creators.</p>
             <ul class="pricing-features">
@@ -794,12 +799,12 @@
 
   <!-- Razorpay Checkout & Application Scripts with Cache-Busting -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="js/webrtc.js?v=2.9"></script>
-  <script src="js/screen.js?v=2.9"></script>
-  <script src="js/annotations.js?v=2.9"></script>
-  <script src="js/webcam.js?v=2.9"></script>
-  <script src="js/recorder.js?v=2.9"></script>
-  <script src="js/ui.js?v=2.9"></script>
-  <script src="js/app.js?v=2.9"></script>
+  <script src="js/webrtc.js?v=3.0"></script>
+  <script src="js/screen.js?v=3.0"></script>
+  <script src="js/annotations.js?v=3.0"></script>
+  <script src="js/webcam.js?v=3.0"></script>
+  <script src="js/recorder.js?v=3.0"></script>
+  <script src="js/ui.js?v=3.0"></script>
+  <script src="js/app.js?v=3.0"></script>
 </body>
 </html>

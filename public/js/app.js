@@ -1,5 +1,6 @@
 /**
- * AeroShare — Master Application Controller
+ * RoKaShare — Master Application Controller
+ * Created by Rohit Kautkar
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -843,7 +844,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         key: orderData.keyId,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
-        name: 'AeroShare Pro',
+        name: 'RoKaShare Pro',
         description: planId === 'team_annual' ? 'Team Workspace Subscription' : 'Pro Monthly Subscription',
         image: '/assets/favicon.svg',
         order_id: orderData.order.id,

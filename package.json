@@ -1,7 +1,7 @@
 {
-  "name": "aero-share",
+  "name": "rokashare",
   "version": "1.0.0",
-  "description": "Real-time WebRTC screen sharing and presentation suite with room sharing, webcam PiP, annotations, and HD recording.",
+  "description": "RoKaShare — Real-time WebRTC screen sharing and presentation suite created by Rohit Kautkar.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,11 +10,12 @@
   "keywords": [
     "webrtc",
     "screenshare",
+    "rokashare",
     "canvas",
     "recording",
     "presentation"
   ],
-  "author": "Antigravity",
+  "author": "Rohit Kautkar",
   "license": "MIT",
   "dependencies": {
     "express": "^4.21.2",

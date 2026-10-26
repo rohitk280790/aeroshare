@@ -164,12 +164,12 @@ app.get('/api/videos/:id/stream', (req, res) => {
 // 2. RAZORPAY BILLING & SUBSCRIPTIONS
 // ==========================================
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_AeroShareDemo';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_RoKaShareDemo';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'rzp_test_secret';
 
 let razorpayInstance = null;
 try {
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_AeroShareDemo') {
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_RoKaShareDemo') {
     razorpayInstance = new Razorpay({
       key_id: RAZORPAY_KEY_ID,
       key_secret: RAZORPAY_KEY_SECRET
@@ -192,7 +192,7 @@ app.get('/api/billing/config', (req, res) => {
       },
       {
         id: 'pro_monthly',
-        name: 'AeroShare Pro',
+        name: 'RoKaShare Pro',
         price: '₹799',
         amount: 79900,
         period: '/ month',
@@ -246,7 +246,7 @@ app.post('/api/billing/verify-payment', (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, planId } = req.body;
   res.json({
     success: true,
-    message: '🎉 Congratulations! AeroShare Pro is now active. Enjoy unlimited cloud storage & 4K recording.',
+    message: '🎉 Congratulations! RoKaShare Pro is now active. Enjoy unlimited cloud storage & 4K recording.',
     plan: 'pro',
     paymentId: razorpay_payment_id || 'pay_demo_success'
   });
@@ -509,7 +509,7 @@ function handleClientExit(clientId) {
 
 server.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 AeroShare Pro SaaS running on http://localhost:${PORT}`);
+  console.log(`🚀 RoKaShare Pro SaaS by Rohit Kautkar running on http://localhost:${PORT}`);
   console.log(`💼 Razorpay Billing & Cloud Video Sharing Active`);
   console.log(`📡 Local Network (Wi-Fi) Addresses:`);
   const ips = getLocalIpAddresses();

@@ -1,5 +1,5 @@
 /**
- * AeroShare — UI Interactions, Toasts, Modals, Reactions & QR Generator
+ * RoKaShare — UI Interactions, Toasts, Modals, Reactions & QR Generator
  */
 
 class UIManager {
@@ -183,7 +183,7 @@ class UIManager {
     const a = document.createElement('a');
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     a.href = dataUrl;
-    a.download = `AeroShare-Snapshot-${timestamp}.png`;
+    a.download = `RoKaShare-Snapshot-${timestamp}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

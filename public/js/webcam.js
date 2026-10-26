@@ -1,5 +1,5 @@
 /**
- * AeroShare — Draggable Webcam Picture-in-Picture (PiP) Controller
+ * RoKaShare — Draggable Webcam Picture-in-Picture (PiP) Controller
  */
 
 class WebcamManager {

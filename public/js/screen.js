@@ -1,5 +1,5 @@
 /**
- * AeroShare — Screen Capture, Audio Mixing & Presets Engine
+ * RoKaShare — Screen Capture, Audio Mixing & Presets Engine
  */
 
 class ScreenManager {

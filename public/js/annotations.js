@@ -1,5 +1,5 @@
 /**
- * AeroShare — Live Canvas Annotations & Laser Pointer Engine
+ * RoKaShare — Live Canvas Annotations & Laser Pointer Engine
  */
 
 class AnnotationEngine {

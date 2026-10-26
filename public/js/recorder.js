@@ -1,5 +1,5 @@
 /**
- * AeroShare — HD Screen & Audio Session Recorder
+ * RoKaShare — HD Screen & Audio Session Recorder
  */
 
 class SessionRecorder {

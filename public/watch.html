@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Watch Recording — AeroShare Video</title>
+  <title>Watch Recording — RoKaShare Video</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
   
   <!-- Fonts -->
@@ -197,8 +197,8 @@
   <!-- Header -->
   <header class="watch-header">
     <a href="/" class="brand" style="text-decoration:none">
-      <img src="/assets/favicon.svg" alt="AeroShare" class="brand-icon">
-      <span class="brand-text">Aero<span class="brand-highlight">Share</span></span>
+      <img src="/assets/favicon.svg" alt="RoKaShare" class="brand-icon">
+      <span class="brand-text">RoKa<span class="brand-highlight">Share</span></span>
       <span class="badge badge-studio">VIDEO</span>
     </a>
     <div style="display:flex; gap:12px; align-items:center;">
@@ -243,7 +243,7 @@
           <span>Copy Link</span>
         </button>
 
-        <a id="btn-download-video" class="btn btn-glass btn-sm" download="AeroShare-Recording.webm">
+        <a id="btn-download-video" class="btn btn-glass btn-sm" download="RoKaShare-Recording.webm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Download</span>
         </a>
@@ -254,7 +254,7 @@
     <div class="viral-banner">
       <div class="viral-text">
         <h3>Create instant screen & webcam videos like this</h3>
-        <p>AeroShare lets you record your screen, webcam, and drawings in 1 click — zero downloads needed.</p>
+        <p>RoKaShare lets you record your screen, webcam, and drawings in 1 click — zero downloads needed.</p>
       </div>
       <a href="/" class="btn btn-primary">Start Recording Now</a>
     </div>
@@ -299,7 +299,7 @@
 
         player.src = `/api/videos/${videoId}/stream`;
         downloadBtn.href = `/api/videos/${videoId}/stream`;
-        downloadBtn.download = `${data.title || 'AeroShare'}.webm`;
+        downloadBtn.download = `${data.title || 'RoKaShare'}.webm`;
       } catch (err) {
         titleEl.textContent = 'Recording Not Found or Processing';
       }
