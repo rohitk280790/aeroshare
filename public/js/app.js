@@ -102,6 +102,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnCloseSettings = document.getElementById('btn-close-settings');
   const settingResolution = document.getElementById('setting-resolution');
 
+  // Mobile Device Notice & Camera Broadcast Modal
+  const modalMobileNotice = document.getElementById('modal-mobile-notice');
+  const btnCloseMobileNotice = document.getElementById('btn-close-mobile-notice');
+  const btnCopyRoomLinkMobile = document.getElementById('btn-copy-room-link-mobile');
+  const btnBroadcastBackCam = document.getElementById('btn-broadcast-back-cam');
+  const btnBroadcastFrontCam = document.getElementById('btn-broadcast-front-cam');
+
   // Chat & Reactions
   const chatForm = document.getElementById('chat-form');
   const chatInput = document.getElementById('chat-input');
@@ -317,6 +324,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (roleText === 'HOST') {
       roleBadge.className = 'badge badge-host';
+      if (!screen.hasDisplayMediaSupport()) {
+        showEmptyStage(
+          'Mobile Device Detected',
+          'Mobile web browsers restrict screen recording. Tap below to broadcast your camera, or host from a PC.'
+        );
+      }
     } else {
       roleBadge.className = 'badge badge-viewer';
     }
@@ -361,6 +374,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnEmptyStartShare.classList.add('hidden');
     } else {
       btnEmptyStartShare.classList.remove('hidden');
+      if (!screen.hasDisplayMediaSupport()) {
+        btnEmptyStartShare.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>Broadcast Options / Camera</span>
+        `;
+      }
     }
   }
 
@@ -381,10 +400,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ==========================================
-  // 6. Presenter Screen Sharing
+  // 6. Presenter Screen Sharing & Mobile Fallback
   // ==========================================
 
+  function openMobileNoticeModal() {
+    if (modalMobileNotice && typeof modalMobileNotice.showModal === 'function') {
+      modalMobileNotice.showModal();
+    }
+  }
+
+  function closeMobileNoticeModal() {
+    if (modalMobileNotice && modalMobileNotice.open) {
+      modalMobileNotice.close();
+    }
+  }
+
   async function startScreenShare() {
+    if (!screen.hasDisplayMediaSupport()) {
+      openMobileNoticeModal();
+      return;
+    }
+
     try {
       const quality = settingResolution.value;
       const captureSystem = document.getElementById('setting-system-audio').checked;
@@ -412,8 +448,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       ui.showToast('Screen sharing is LIVE! Switch apps to present cleanly.', 'success', 5000);
     } catch (err) {
-      if (err.name !== 'NotAllowedError') {
+      if (err.code === 'UNSUPPORTED_DISPLAY_MEDIA') {
+        openMobileNoticeModal();
+      } else if (err.name !== 'NotAllowedError') {
         ui.showToast('Could not access screen: ' + err.message, 'error');
+      }
+    }
+  }
+
+  async function startCameraBroadcast(facingMode = 'environment') {
+    try {
+      const stream = await screen.startCameraBroadcast(facingMode);
+      screenVideo.srcObject = stream;
+      hideEmptyStage();
+
+      isSharingScreen = true;
+      btnToggleShare.classList.add('dock-btn-active');
+      labelShareBtn.textContent = 'Stop Camera';
+
+      // Update WebRTC peers
+      webrtc.updateActiveStream(stream);
+      webrtc.updatePresenterStatus(true);
+
+      if (activeRole === 'presenter') {
+        isLocalPreviewActive = true;
+        if (presenterActiveCard) presenterActiveCard.classList.add('hidden');
+      }
+
+      ui.showToast('📷 Camera broadcast LIVE! Viewers can now see your phone camera.', 'success', 5000);
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        ui.showToast('Could not access camera: ' + err.message, 'error');
       }
     }
   }
@@ -446,6 +511,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnEmptyStartShare.addEventListener('click', () => {
     startScreenShare();
   });
+
+  // Mobile Notice Modal Event Listeners
+  if (btnCloseMobileNotice) {
+    btnCloseMobileNotice.addEventListener('click', closeMobileNoticeModal);
+  }
+  if (modalMobileNotice) {
+    modalMobileNotice.addEventListener('click', (e) => {
+      if (e.target === modalMobileNotice) closeMobileNoticeModal();
+    });
+  }
+  if (btnCopyRoomLinkMobile) {
+    btnCopyRoomLinkMobile.addEventListener('click', () => {
+      const url = `${window.location.origin}/?room=${activeRoomId}`;
+      navigator.clipboard.writeText(url).then(() => {
+        ui.showToast('Room link copied! Open on PC/Mac to share screen.', 'success', 4000);
+      }).catch(() => {
+        prompt('Copy this link to open on PC:', url);
+      });
+    });
+  }
+  if (btnBroadcastBackCam) {
+    btnBroadcastBackCam.addEventListener('click', async () => {
+      closeMobileNoticeModal();
+      await startCameraBroadcast('environment');
+    });
+  }
+  if (btnBroadcastFrontCam) {
+    btnBroadcastFrontCam.addEventListener('click', async () => {
+      closeMobileNoticeModal();
+      await startCameraBroadcast('user');
+    });
+  }
 
   // Toggle local preview on presenter's screen
   if (btnToggleLocalPreview) {

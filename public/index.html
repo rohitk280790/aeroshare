@@ -730,14 +730,76 @@
     </div>
   </dialog>
 
+  <!-- 5. Mobile Device Notice & Camera Broadcast Modal -->
+  <dialog id="modal-mobile-notice" class="modal-dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:40px; height:40px; border-radius:10px; background:rgba(255, 170, 0, 0.15); border:1px solid rgba(255,170,0,0.3); display:flex; align-items:center; justify-content:center; color:#ffaa00; font-size:22px;">
+            📱
+          </div>
+          <div>
+            <h3 class="modal-title" style="margin:0; font-size:1.15rem;">Mobile Screen Sharing</h3>
+            <p class="modal-desc" style="margin:0; font-size:0.8rem; color:var(--text-secondary);">Mobile OS Security Restriction</p>
+          </div>
+        </div>
+        <button class="modal-close" id="btn-close-mobile-notice">✕</button>
+      </div>
+
+      <div class="modal-content">
+        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; margin-bottom:16px;">
+          <p style="margin:0 0 8px 0; font-size:13px; line-height:1.5; color:var(--text-primary);">
+            <strong>Mobile browsers (Brave, Chrome, Safari on Android & iOS)</strong> block web applications from capturing the phone's screen (<code style="color:var(--accent-cyan); font-size:12px;">getDisplayMedia</code>) for operating system privacy reasons.
+          </p>
+          <p style="margin:0; font-size:12px; line-height:1.5; color:var(--text-secondary);">
+            Google Meet, Zoom Web, and Teams also disable mobile screen sharing in browsers.
+          </p>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Option 1: Open on Laptop / PC -->
+          <div style="border:1px solid rgba(0,242,254,0.3); background:rgba(0,242,254,0.05); border-radius:12px; padding:14px;">
+            <div style="font-weight:600; font-size:14px; color:var(--accent-cyan); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+              💻 Option 1: Share Screen from Laptop / PC (Recommended)
+            </div>
+            <p style="font-size:12px; color:var(--text-secondary); margin:0 0 10px 0; line-height:1.4;">
+              Open this room code on your PC, Mac, or Laptop to share windows, PowerPoint, apps & entire screens. Mobile users can watch in real time!
+            </p>
+            <button id="btn-copy-room-link-mobile" class="btn btn-sm btn-glass btn-block" type="button">
+              📋 Copy Room Link to Open on PC
+            </button>
+          </div>
+
+          <!-- Option 2: Broadcast Camera -->
+          <div style="border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.02); border-radius:12px; padding:14px;">
+            <div style="font-weight:600; font-size:14px; color:var(--text-primary); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+              📷 Option 2: Broadcast Phone Camera
+            </div>
+            <p style="font-size:12px; color:var(--text-secondary); margin:0 0 10px 0; line-height:1.4;">
+              Broadcast your phone's camera to present documents, whiteboards, or live video directly to the room.
+            </p>
+            <div style="display:flex; gap:8px;">
+              <button id="btn-broadcast-back-cam" class="btn btn-sm btn-primary" style="flex:1;" type="button">
+                📷 Back Camera
+              </button>
+              <button id="btn-broadcast-front-cam" class="btn btn-sm btn-glass" style="flex:1;" type="button">
+                🤳 Front Camera
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Razorpay Checkout & Application Scripts with Cache-Busting -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script src="js/webrtc.js?v=2.8"></script>
-  <script src="js/screen.js?v=2.8"></script>
-  <script src="js/annotations.js?v=2.8"></script>
-  <script src="js/webcam.js?v=2.8"></script>
-  <script src="js/recorder.js?v=2.8"></script>
-  <script src="js/ui.js?v=2.8"></script>
-  <script src="js/app.js?v=2.8"></script>
+  <script src="js/webrtc.js?v=2.9"></script>
+  <script src="js/screen.js?v=2.9"></script>
+  <script src="js/annotations.js?v=2.9"></script>
+  <script src="js/webcam.js?v=2.9"></script>
+  <script src="js/recorder.js?v=2.9"></script>
+  <script src="js/ui.js?v=2.9"></script>
+  <script src="js/app.js?v=2.9"></script>
 </body>
 </html>

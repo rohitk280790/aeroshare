@@ -54,7 +54,23 @@ class ScreenManager {
     };
   }
 
+  hasDisplayMediaSupport() {
+    return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function');
+  }
+
   async startScreenCapture(presetKey = '1080p60', captureSystemAudio = true) {
+    if (!this.hasDisplayMediaSupport()) {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const err = new Error(
+        isMobile
+          ? 'Mobile web browsers (Brave, Chrome, Safari on Android & iOS) do not support getDisplayMedia due to OS security limits. Use a Desktop/Laptop to share your screen, or use Camera Broadcast.'
+          : 'Screen sharing is not supported by this browser.'
+      );
+      err.code = 'UNSUPPORTED_DISPLAY_MEDIA';
+      this.onError(err);
+      throw err;
+    }
+
     this.selectedPreset = presetKey;
     const constraints = this.getConstraints(presetKey);
 
@@ -81,6 +97,45 @@ class ScreenManager {
       return this.mixedStream || this.screenStream;
     } catch (err) {
       console.error('[Screen] getDisplayMedia error:', err);
+      this.onError(err);
+      throw err;
+    }
+  }
+
+  async startCameraBroadcast(facingMode = 'environment') {
+    this.stop();
+    try {
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        throw new Error('Camera access is not supported on this browser.');
+      }
+
+      this.screenStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      const videoTrack = this.screenStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          console.log('[Screen] Camera broadcast ended');
+          this.stop();
+          this.onStreamEnded();
+        };
+      }
+
+      await this.composeStream();
+      this.onStreamReady(this.mixedStream || this.screenStream);
+      return this.mixedStream || this.screenStream;
+    } catch (err) {
+      console.error('[Screen] startCameraBroadcast error:', err);
       this.onError(err);
       throw err;
     }
